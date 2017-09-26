@@ -12,18 +12,20 @@
 #include <avr/io.h>
 #include <stdio.h>
 #include <avr/interrupt.h>
-#include "USART.h"
+#include "GPS-USART.h"
 
 /* Static Variables */
 static unsigned char UART_RxBuf[UART_RX_BUFFER_SIZE];
 static volatile unsigned char UART_RxHead;
 static volatile unsigned char UART_RxTail;
-static unsigned char UART_TxBuf[UART_TX_BUFFER_SIZE];static volatile unsigned char UART_TxHead;
+static unsigned char UART_TxBuf[UART_TX_BUFFER_SIZE];
+static volatile unsigned char UART_TxHead;
 static volatile unsigned char UART_TxTail;
 
 void USART0_Init(unsigned char ubrr)
 {
-	unsigned char x;
+	unsigned char x;
+
 	/* Set the baud rate */
 	UBRR0H = (unsigned char)(ubrr>>8);
 	UBRR0L = (unsigned char)ubrr;
@@ -34,7 +36,8 @@ void USART0_Init(unsigned char ubrr)
 	//Double speed mode
 	UCSR0A = (1<<U2X0);
 	/* Flush receive buffer */
-	x = 0;
+	x = 0;
+
 	UART_RxTail = x;
 	UART_RxHead = x;
 	UART_TxTail = x;
@@ -45,13 +48,15 @@ void USART0_Init(unsigned char ubrr)
 ISR(USART0_RX_vect)
 {
 	unsigned char data;
-	unsigned char tmphead;
+	unsigned char tmphead;
+
 	/* Read the received data */
 	data = UDR0;
 	/* Calculate buffer index */
 	tmphead = (UART_RxHead + 1) & UART_RX_BUFFER_MASK;
 	/* Store new index */
-	UART_RxHead = tmphead;
+	UART_RxHead = tmphead;
+
 	if (tmphead == UART_RxTail) {
 		/* ERROR! Receive buffer overflow */
 	}
@@ -61,7 +66,8 @@ ISR(USART0_RX_vect)
 
 ISR(USART0_UDRE_vect)
 {
-	unsigned char tmptail;
+	unsigned char tmptail;
+
 	/* Check if all data is transmitted */
 	if (UART_TxHead != UART_TxTail) {
 		/* Calculate buffer index */
@@ -70,14 +76,21 @@ ISR(USART0_UDRE_vect)
 		UART_TxTail = tmptail;
 		/* Start transmission */
 		UDR0 = UART_TxBuf[tmptail];
-		} else {		/* Disable UDRE interrupt */		UCSR0B &= ~(1<<UDRIE0);	}
+		} else {
+		/* Disable UDRE interrupt */
+		UCSR0B &= ~(1<<UDRIE0);
+	}
 }
 
 ///////////////////////////////////////////////////////////////////////////
 
-void USART0_Transmit(unsigned char data)
+void USART0_Transmit(unsigned char data)
+
 {
-	unsigned char tmphead;	/* Calculate buffer index */	tmphead = (UART_TxHead + 1) & UART_TX_BUFFER_MASK;	/* Wait for free space in buffer */
+	unsigned char tmphead;
+	/* Calculate buffer index */
+	tmphead = (UART_TxHead + 1) & UART_TX_BUFFER_MASK;
+	/* Wait for free space in buffer */
 	while (tmphead == UART_TxTail);
 	/* Store data in buffer */
 	UART_TxBuf[tmphead] = data;
@@ -108,15 +121,17 @@ int uart0_putchar(char c, FILE *stream)
 // 	/* Put data into buffer, sends the data */
 // 	UDR0 = c;
 	
-		unsigned char tmphead;		/* Calculate buffer index */		tmphead = (UART_TxHead + 1) & UART_TX_BUFFER_MASK;		/* Wait for free space in buffer */
+		unsigned char tmphead;
+		/* Calculate buffer index */
+		tmphead = (UART_TxHead + 1) & UART_TX_BUFFER_MASK;
+		/* Wait for free space in buffer */
 		while (tmphead == UART_TxTail);
 		/* Store data in buffer */
 		UART_TxBuf[tmphead] = c;
 		/* Store new index */
 		UART_TxHead = tmphead;
 		/* Enable UDRE interrupt */
-		UCSR0B |= (1<<UDRIE0);
-	
+		UCSR0B |= (1<<UDRIE0);	
 }
 
 int uart0_getchar(FILE *stream) 
@@ -126,7 +141,9 @@ int uart0_getchar(FILE *stream)
 // 	/* Get and return received data from buffer */
 // 	return UDR0;
 	
-		unsigned char tmptail;				/* Wait for incoming data */
+		unsigned char tmptail;
+		
+		/* Wait for incoming data */
 		while (UART_RxHead == UART_RxTail);
 		/* Calculate buffer index */
 		tmptail = (UART_RxTail + 1) & UART_RX_BUFFER_MASK;
